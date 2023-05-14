@@ -1,0 +1,287 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+This is the final project of the Data Analyst course from Google, by Andres Delgado.
+
+**About the company**
+
+The company started in 2016, in Chicago, offering bike share, since then they have grown the fleet up to 5824 bikes. They have realized that annual members are more profitable than casual ones, they want to increase the first group.
+
+##Ask
+
+The context is that out marketing group want to expand the number of annual riders and to see the differences in the ride between the casual and the annual groups.
+
+The stakeholder is the director of marketing, Lily Moreno.\
+1.How do annual members and casual riders use Cyclistic bikes differently?\
+2.Why would casual riders buy Cyclistic annual memberships?\
+3.How can Cyclistic use digital media to influence casual riders to become members?
+
+##Prepare
+
+The 12 months of data downloaded from the Index of divvy-tripdata, from there they will be placed in a folder that only contains that information, and the csv names will be changed to have a more uniform and informative name.
+The data has no information that could help identify the user by any means. 
+The data integrity was done by checking in R that all the information had parity, same columns and the same type of information:
+
+| Columns | Description |
+| ---------- | ---------- |
+| ride_id   | Identification number  |
+| rideable_type   | bicycle type   |
+| started_at   | Date and time of start   |
+| ended_at   | Date and time of end   |
+| start_station_name   | name of starting station   |
+| start_station_id   | start station code   |
+| end_station_name   | end station name   |
+| end_station_id   | end station code   |
+| start_lat   | start latitude   |
+| start_lng   | start longitude   |
+| end_lat   | end latitude   |
+| end_lng   | end longitude   |
+| member_casual   | membership type   |
+
+##Process  
+
+In the process that I'll use to clean the data and create visualization for the data downloaded previously is R, Rstudio to be more precise. 
+Later some of the cleaned data could be passed to excel or Tableau to make other kind of visualization.  
+The first step in calling the libraries in R:
+```{r}
+library(tidyverse)
+library(lubridate)
+library(tidyverse)
+library(ggplot2)
+```
+Then I read the data:  
+```{r}
+
+
+m4_2022 = read.csv("202204-divvy-tripdata.csv")
+m5_2022 = read.csv("202205-divvy-tripdata.csv")
+m6_2022 = read.csv("202206-divvy-tripdata.csv")
+m7_2022 = read.csv("202207-divvy-tripdata.csv")
+m8_2022 = read.csv("202208-divvy-tripdata.csv")
+m9_2022 = read.csv("202209-divvy-publictripdata.csv")
+
+m10_2022 = read.csv("202210-divvy-tripdata.csv")
+m11_2022 = read.csv("202211-divvy-tripdata.csv")
+m12_2022 = read.csv("202212-divvy-tripdata.csv")
+m1_2023 = read.csv("202301-divvy-tripdata.csv")
+m2_2023 = read.csv("202302-divvy-tripdata.csv")
+m3_2023 = read.csv("202303-divvy-tripdata.csv")
+```
+Just in case I check again the data to confirm that the data is in fact the same:
+```{r}
+colnames(m4_2022)
+colnames(m5_2022)
+colnames(m6_2022)
+colnames(m7_2022)
+colnames(m11_2022)
+colnames(m1_2023)
+str(m4_2022)
+str(m5_2022)
+str(m8_2022)
+str(m9_2022)
+str(m2_2023)
+```
+Then I bind all the information together:
+```{r}
+all_trips = bind_rows(m4_2022, m5_2022,m6_2022, m7_2022, m8_2022, m9_2022, m10_2022,m11_2022,m12_2022, m1_2023, m2_2023, m3_2023)
+```
+After that the data that is not necessary will be eliminated:
+```{r}
+all_trips = all_trips %>%
+      select(-c(start_lat,start_lng,end_lat,end_lng))
+```
+Next step is separating complex data into more manageable columns
+```{r}
+all_trips$date = as.Date(all_trips$started_at)
+all_trips$month = format(as.Date(all_trips$date), "%m")
+all_trips$day = format(as.Date(all_trips$date), "%d")
+all_trips$year = format(as.Date(all_trips$date), "%Y")
+all_trips$day_of_week = format(as.Date(all_trips$date), "%A")
+all_trips$ride_length = difftime(all_trips$ended_at,all_trips$started_at)
+all_trips$started_at = as.POSIXct(all_trips$started_at, format = "%Y-%m-%d %H:%M:%S")
+str(all_trips$started_at)
+all_trips$ended_at = as.POSIXct(all_trips$ended_at, format = "%Y-%m-%d %H:%M:%S")
+```
+At last there is some new information can be gathered by using maths, like the duration of the trips, then eliminating the 0 results or that we done for revision by the business:
+```{r}
+all_trips$ride_length = (difftime(all_trips$ended_at,all_trips$started_at))/60
+all_trips_v2 = all_trips[!(all_trips$start_station_id == "HQ QR" | all_trips$ride_length < 0),]
+```
+
+##Analize
+In this step the data is organized and cleaned, then one must make the most important data readable and try to find trends and patterns that can give a better picture of the data.  
+
+First it's good to explore the general data, for example how long where in average the trips, the longer ones and the minimum length of them:
+```{r}
+mean(all_trips_v2$ride_length, na.rm = TRUE)
+median(all_trips_v2$ride_length, na.rm = TRUE)
+max(all_trips_v2$ride_length, na.rm = TRUE)
+min(all_trips_v2$ride_length, na.rm = TRUE)
+```
+Now it will be good to start comparing the differences between the 2 sets of users, then using also the diferences between the usage deppending on the day of the week:
+```{r}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = mean, na.rm = TRUE)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = median, na.rm = TRUE)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = max, na.rm = TRUE)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = min, na.rm = TRUE)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = mean, na.rm = TRUE)
+```
+Since my Rstudio was installed in a Spanish pc the days of the week appeared in Spanish, so we better change that to English so it's easier to order the days, for later the visualization:
+```{r}
+all_trips_v2 = all_trips_v2 %>%
+  mutate(day_of_week= recode(day_of_week
+  ,"domingo" = "Sunday"
+  ,"lunes" = "Monday"
+  ,"martes" = "Tuesday"
+  ,"miércoles" = "Wednesday"
+  ,"jueves" = "Thrusday"
+  ,"viernes" = "Friday"
+  ,"sábado" = "Saturday"))
+all_trips_v2$day_of_week <- ordered(all_trips_v2$day_of_week, levels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",      "Saturday"))
+```
+Then the average ride was separated by user and day of the week.
+```{r}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = mean)
+```
+Analyzing ridership data by type and weekday
+```{r}
+all_trips_v2 %>%
+mutate(weekday= wday(started_at, label = TRUE)) %>%
+group_by(member_casual, weekday) %>%
+summarise(number_of_rides = n()
+,average_duration = mean(ride_length)) %>%
+arrange(member_casual,weekday)
+```
+A second and third data set are created, where the only columns left are the member_casual, the starting stops and the end stops, and counts of the usage of each one.
+```{r}
+start_station_counts <- all_trips_v2 %>%
+  filter(start_station_name != "" & !is.na(start_station_name)) %>%
+  count(start_station_name, member_casual) %>%
+  arrange(member_casual, desc(n))
+```
+
+```{r}
+end_station_counts <- all_trips_v2 %>%
+  filter(end_station_name != "" & !is.na(end_station_name)) %>%
+  count(end_station_name, member_casual) %>%
+  arrange(member_casual, desc(n))
+```
+Then the data is filtered to only show the most used stops at the start and end:
+```{r}
+top_start_stations <- start_station_counts %>%
+  group_by(member_casual) %>%
+  top_n(10, n) %>%
+  ungroup()
+```
+```{r}
+top_end_stations <- end_station_counts %>%
+  group_by(member_casual) %>%
+  top_n(10, n) %>%
+  ungroup()
+```
+Then we visualize which are the most starting stops separated by riders type:
+```{r}
+ggplot(top_start_stations, aes(x = reorder(start_station_name, n), y = n, fill = member_casual)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Start Station", y = "Count", fill = "Member Type") +
+  ggtitle("Top 10 Most Used Start Stations by Member Type") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+And which are more used as an end:
+```{r}
+ggplot(top_end_stations, aes(x = reorder(end_station_name, n), y = n, fill = member_casual)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "End Station", y = "Count", fill = "Member Type") +
+  ggtitle("Top 10 Most Used End Stations by Member Type") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+Also we are going to see which are the most used montly:
+```{r}
+monthly_station_counts <- all_trips_v2 %>%
+  filter(start_station_name != "" & !is.na(start_station_name)) %>%
+  count(start_station_name, month) %>%
+  arrange(month, desc(n))
+```
+The data is filtered to see which is the most used station each month:
+```{r}
+top_month_stations <- monthly_station_counts %>%
+  group_by(month) %>%
+  top_n(1, n) %>%
+  ungroup()
+```
+And the graph:
+```{r}
+ggplot(top_month_stations, aes(x = reorder(start_station_name, n), y = n, fill = month)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Start Station", y = "Count", fill = "Month") +
+  ggtitle("Top Most Used Start Stations Monthly") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+I did the same with the ending stops:
+```{r}
+monthly_end_station_counts <- all_trips_v2 %>%
+  filter(end_station_name != "" & !is.na(end_station_name)) %>%
+  count(end_station_name, month) %>%
+  arrange(month, desc(n))
+
+top_end_month_stations <- monthly_end_station_counts %>%
+  group_by(month) %>%
+  top_n(1, n) %>%
+  ungroup()
+ggplot(top_end_month_stations, aes(x = reorder(end_station_name, n), y = n, fill = month)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "End Station", y = "Count", fill = "Month") +
+  ggtitle("Top Most Used End Stations Monthly") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+Data is better read as a visualization as it take much less time to understand the information presented, so next step was visualization.
+First the number of rides by each rider type weekly and then monthly:
+```{r}
+all_trips_v2 %>%
+mutate(weekday= wday(started_at, label = TRUE)) %>%
+group_by(member_casual, weekday) %>%
+summarise(number_of_rides = n()
+,average_duration = mean(ride_length)) %>%
+arrange(member_casual,weekday) %>%
+ggplot(aes(x=weekday, y=number_of_rides,fill= member_casual)) + geom_col(position = "dodge")
+```
+
+```{r}
+all_trips_v2 %>%
+group_by(member_casual, month) %>%
+summarise(number_of_rides = n()) %>%
+arrange(member_casual, month)  %>%
+ggplot(aes(x = month, y = number_of_rides, fill = member_casual)) +
+labs(title ="Total trips by customer type Vs. Month") +
+theme(axis.text.x = element_text(angle = 30)) +
+geom_col(width=0.5, position = position_dodge(width=0.5)) +
+scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+
+```
+Following that the average duration of the rides:
+```{r}
+all_trips_v2 %>%
+mutate(weekday= wday(started_at, label = TRUE)) %>%
+group_by(member_casual, weekday) %>%
+summarise(number_of_rides = n()
+,average_duration = (mean(ride_length))/60) %>%
+arrange(member_casual,weekday) %>%
+ggplot(aes(x=weekday, y=average_duration,fill= member_casual)) + geom_col(position = "dodge")
+```
+
+
+##Findings  
+- The members ride more times than the casual all year, however, in June and July the number of casual riders increase to nearly match the members.
+- From May to October the number of rides increase drastically.
+-The average duration of the trips are way greater in length in the casual riders than the members.
+-From April to October the most used start station is Streeter Dr & Grand Ave which is also the preferred stop for the trips, so having more bikes there could help with the flow of the bikes.
+-Since the trips are longer for the casual users maybe offering them a cheaper use of the electric bikes could make more people use them.
